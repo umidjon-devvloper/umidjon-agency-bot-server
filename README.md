@@ -43,20 +43,54 @@ Telegramga xabar kelishi kerak.
 
 ## 4. Saytni ulash
 
-Sayt root'idagi `.env` ga:
+Servis manzili sayt kodiga standart qiymat sifatida yozilgan
+(`src/api/telegram.ts` → `DEFAULT_BOT_URL = https://umidjon-agency-bot-server.fly.dev`),
+shuning uchun URL uchun alohida sozlama shart emas.
+
+`LEAD_API_KEY` qo'yilgan bo'lsa, sayt tomonida ham bir xil qiymat kerak — sayt
+root'idagi `.env` ga (Vercel'da Project → Settings → Environment Variables):
 
 ```
-LEAD_BOT_URL=https://bot.sizning-domen.uz
-LEAD_BOT_API_KEY=<bot-server/.env dagi LEAD_API_KEY bilan bir xil>
+LEAD_BOT_API_KEY=<bot-server dagi LEAD_API_KEY bilan bir xil>
+LEAD_BOT_URL=            # ixtiyoriy: boshqa deploy'ga yo'naltirish uchun
 ```
 
-`LEAD_BOT_URL` qo'yilgan zahoti sayt Telegramga o'zi murojaat qilmaydi, hammasini
-shu serverga uzatadi. Vercel'da bu ikkalasini Project → Settings → Environment
-Variables ga qo'shish kerak.
+`LEAD_BOT_URL` ni bo'sh satr qilib qo'ysangiz sayt eski yo'lga qaytadi va
+Telegramga o'zi murojaat qiladi.
 
-## 5. Deploy
+## 5. Deploy — Fly.io
 
-Har qanday Node host bo'ladi (Railway, Render, Fly, VPS). Kerakli sozlama:
+Repoda tayyor [`fly.toml`](fly.toml) va [`Dockerfile`](Dockerfile) bor.
+
+```bash
+cd bot-server
+fly deploy
+fly secrets set \
+  TELEGRAM_BOT_TOKEN=<token> \
+  TELEGRAM_CHAT_ID=<chat id> \
+  LEAD_API_KEY=<uzun tasodifiy so'z>
+fly status                 # machine "started" bo'lishi kerak
+curl https://umidjon-agency-bot-server.fly.dev/health
+```
+
+**Muhim ikki narsa:**
+
+1. **Port.** Fly konteynerga `8080` portdan kiradi (`internal_port`). Server
+   `PORT` bo'sh bo'lsa 8080 ni oladi, `fly.toml` da ham 8080 yozilgan — ikkisi mos
+   bo'lishi shart. `.env` dagi `PORT=8787` faqat local uchun; uni Fly secret
+   sifatida qo'ymang, aks holda proxy serverni topa olmay so'rov timeout bo'ladi.
+2. **Machine to'xtamasin.** `auto_stop_machines = "off"` va
+   `min_machines_running = 1` — bot long-polling bilan ishlaydi, machine uxlab
+   qolsa Telegramni tinglashni to'xtatadi.
+
+Secretlarni `fly secrets set` orqali qo'ying — `.env` fayl image ichiga
+tushmaydi (`.gitignore` da) va tushmasligi ham kerak.
+
+`data/leads.jsonl` machine qayta ishga tushganda o'chadi (Fly disk vaqtinchalik).
+Doimiy kerak bo'lsa volume ulang; asosiy nusxalar baribir Telegram va saytning
+Mongo bazasida.
+
+### Boshqa hostlar
 
 - Start command: `npm start`
 - Env: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID`, `LEAD_API_KEY`, `PORT`

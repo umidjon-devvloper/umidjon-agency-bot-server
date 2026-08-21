@@ -1,23 +1,31 @@
-# fly.toml app configuration file generated for umidjon-agency-bot-server on 2026-08-21T06:33:28Z
-#
-# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
-#
-
 app = 'umidjon-agency-bot-server'
 primary_region = 'ams'
 
 [build]
 
+[env]
+  PORT = '8080'
+  # Long polling needs no public URL and survives Fly's proxy being idle.
+  BOT_POLLING = 'true'
+
 [http_service]
   internal_port = 8080
   force_https = true
-  auto_stop_machines = 'stop'
-  auto_start_machines = true
-  min_machines_running = 0
   processes = ['app']
+  # Fly Launch defaults these to 'stop' / 0. That suits a request-only service,
+  # but this one also long-polls Telegram: a stopped machine answers no lead POST
+  # and, worse, stops listening for bot commands until someone hits the URL.
+  auto_stop_machines = 'off'
+  auto_start_machines = true
+  min_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = '10s'
+    interval = '30s'
+    timeout = '5s'
+    method = 'GET'
+    path = '/health'
 
 [[vm]]
-  memory = '1gb'
-  cpu_kind = 'shared'
-  cpus = 1
-  memory_mb = 256
+  size = 'shared-cpu-1x'
+  memory = '256mb'

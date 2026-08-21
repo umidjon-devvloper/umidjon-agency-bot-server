@@ -1,39 +1,25 @@
-# syntax = docker/dockerfile:1
+# The service has no dependencies, so there is nothing to install and no build
+# step — the image is the runtime plus seven source files. That is why this
+# replaces the multi-stage Dockerfile Fly Launch generated: npm install, the
+# build-essential toolchain and the throw-away build stage all install nothing.
+FROM node:22-alpine
 
-# Adjust NODE_VERSION as desired
-ARG NODE_VERSION=22.21.1
-FROM node:${NODE_VERSION}-slim AS base
-
-LABEL fly_launch_runtime="Node.js"
-
-# Node.js app lives here
 WORKDIR /app
-
-# Set production environment
-ENV NODE_ENV="production"
-
-
-# Throw-away build stage to reduce size of final image
-FROM base AS build
-
-# Install packages needed to build node modules
-RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential node-gyp pkg-config python-is-python3
-
-# Install node modules
 COPY package.json ./
-RUN npm install
+COPY src ./src
+COPY scripts ./scripts
 
-# Copy application code
-COPY . .
+# Leads are appended here before delivery. Without a Fly volume mounted at
+# /app/data this is lost when the machine restarts; Telegram and the site's
+# database are the durable copies, this one is the local safety net.
+RUN mkdir -p /app/data
 
+ENV NODE_ENV=production
+# Must match internal_port in fly.toml: the proxy connects to this port and
+# nothing else. The old default (8787) is what left the app unreachable.
+ENV PORT=8080
+EXPOSE 8080
 
-# Final stage for app image
-FROM base
-
-# Copy built application
-COPY --from=build /app /app
-
-# Start the server by default, this can be overwritten at runtime
-EXPOSE 3000
-CMD [ "npm", "run", "start" ]
+# Not `npm run start`: node as PID 1 receives SIGTERM directly, so the shutdown
+# handler runs and deploys stay quick instead of waiting out a kill timeout.
+CMD ["node", "src/index.js"]

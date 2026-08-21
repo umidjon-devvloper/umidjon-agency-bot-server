@@ -17,7 +17,8 @@ export const config = {
   token: process.env.TELEGRAM_BOT_TOKEN ?? "",
   /** More than one id is normal: a personal chat plus the team group. */
   chatIds: list(process.env.TELEGRAM_CHAT_ID),
-  port: Number(process.env.PORT ?? 8787),
+  /** 8080 is what Fly, Render and Railway expect when nothing is configured. */
+  port: Number(process.env.PORT ?? 8080),
   allowedOrigins: list(process.env.ALLOWED_ORIGINS),
   apiKey: process.env.LEAD_API_KEY ?? "",
   polling: String(process.env.BOT_POLLING ?? "").toLowerCase() === "true",
